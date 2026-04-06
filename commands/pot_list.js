@@ -28,7 +28,7 @@ module.exports = {
                 rows.forEach(pot => {
                     const potTime = new Date(pot.time).toLocaleString('ko-KR');
                     // DB ID는 pot.id (또는 실제 컬럼명) 사용
-                    description += `**ID** : ${pot.id}** \n ** Pot Name : ${pot.name}**\n🕒 ${potTime}\n👥 남은 인원: ${pot.membercnt === 998244353 ? '제한 없음' : pot.membercnt + '명'}\n\n`;
+                    description += `**ID** : ${pot.id} \n ** Pot Name : ${pot.name} **\n🕒 ${potTime}\n👥 남은 인원: ${pot.membercnt === 998244353 ? '제한 없음' : pot.membercnt + '명'}\n\n`;
                 });
                 embed.setDescription(description);
             }

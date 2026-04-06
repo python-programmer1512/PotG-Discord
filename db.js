@@ -78,6 +78,7 @@ async function UpdatePot(State,messageId,updateUser) {
 
     // 1. 해당 메시지 ID를 가진 팟 정보 가져오기
     const rows = await conn.query("SELECT participator, membercnt FROM pot WHERE messageid = ?", [messageId]);
+    //console.log(rows);
     if (rows.length === 0) return { success: false, message: "팟을 찾을 수 없습니다." };
     let { participator, membercnt } = rows[0];
 
@@ -176,6 +177,20 @@ async function GetPagedPots(page = 1, limit = 10) {
     }
 }
 
+async function GetPotById(id) {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        const rows = await conn.query("SELECT * FROM pot WHERE id = ?", [id]);
+        return rows.length > 0 ? rows[0] : null;
+    } catch (err) {
+        console.error(err);
+        return null;
+    } finally {
+        if (conn) conn.release();
+    }
+}
+
 module.exports = {
     pool,
     InsertPot,
@@ -183,4 +198,5 @@ module.exports = {
     DeletePot,
     GetPotMembers,
     GetPagedPots,
+    GetPotById,
 }

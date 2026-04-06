@@ -1,7 +1,6 @@
 
 const { Collection, Client, Events, GatewayIntentBits, Partials, Routes } = require('discord.js');
 const { Timer } = require('./commands/pot_create.js');
-const { Timr } = require('./commands/pot_list.js');
 const { REST } = require('@discordjs/rest');
 const { token,clientId,guildId,MariaDB_PW } = require('./config.json');
 const {pool} = require('./db.js');
@@ -35,6 +34,10 @@ const commands = [];
                 : Routes.applicationCommands(clientId),
             { body: [] },
         );
+        // await rest.put(
+        //     Routes.applicationCommands(clientId),
+        //     { body: [] },
+        // );
         console.log("모든 커맨드 제거 완료!");
         console.log('슬래시 커맨드 등록 중...');
 

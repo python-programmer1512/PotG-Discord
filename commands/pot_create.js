@@ -53,7 +53,7 @@ async function Timer(fiveMinutesBefore,startTime,inputTime,Msg,potName) {
         const members = await GetPotMembers(Msg.id); // DB에서 참여자 ID 목록 가져오기(별도 구현 필요)
         if (members.length > 0) {
             const mentions = members.map(id => `<@${id}>`).join(' ');
-            await Msg.reply({content : `⏰ **${parseInt((inputTime-(Date.now()+9*60*60*1000))/(60*1000))+1}분 뒤 '${potName}' 팟이 시작됩니다!**\n${mentions}`});
+            await Msg.reply({content : `⏰ **${parseInt((inputTime-(Date.now()+9*60*60*1000))/(60*1000))+1}분 뒤 '${potName}' 팟이 시작됩니다!** \n ${mentions}`});
         }
         
     }, fiveMinutesBefore);
@@ -61,8 +61,8 @@ async function Timer(fiveMinutesBefore,startTime,inputTime,Msg,potName) {
     timers.start = setTimeout(async () => {
         const startEmbed = new EmbedBuilder()
             .setColor(0xff0000)
-            .setTitle(`🚀 '${potName}' 팟이 시작되었습니다!`)
-            .setDescription('아래 ✅ 버튼을 눌러 출석을 확인해주세요. 확인하지 않으면 1분마다 호출됩니다.');
+            .setTitle(`🚀 **${potName}** 팟이 시작되었습니다!`)
+            .setDescription(`아래 ✅ 버튼을 눌러 출석을 확인해주세요. 확인하지 않으면 1분마다 호출됩니다. \n\n **팟 참여 인원 : **${LastMembers.map(id => `<@${id}>`).join(' ')}`);
 
         const checkBtn = new ButtonBuilder()
             .setCustomId('participate_check')
@@ -87,10 +87,10 @@ async function Timer(fiveMinutesBefore,startTime,inputTime,Msg,potName) {
 
                 const result = await UpdatePot(2,Msg.id,i.user.id);
                 if(result.success){
-                    ReplyWispper(`'${potName}' 팟 참여가 확인되었습니다.`,i);
+                    ReplyWispper(` **${potName}** 팟 참여가 확인되었습니다.`,i);
                     const LastMembers = await GetPotMembers(Msg.id);
                     if(LastMembers.length == 0){
-                        await Msg.reply({content:`✅ 모든 인원이 '${potName}' 팟에 참석하였습니다!`});
+                        await Msg.reply({content:`✅ 모든 인원이 **${potName}** 팟에 참석하였습니다!`});
                         await DeletePot(Msg.id);
                         if (timers.alert) clearTimeout(timers.alert); // 5분 전 알림 취소
                         if (timers.start) clearTimeout(timers.start); // 정시 시작 로직 취소
@@ -98,7 +98,7 @@ async function Timer(fiveMinutesBefore,startTime,inputTime,Msg,potName) {
                         return;
                     }
                 }else if(result.message == "미참여"){
-                    ReplyWispper(`'${potName}' 팟에 참여한 멤버가 아닙니다.`,i);
+                    ReplyWispper(`**${potName}** 팟에 참여한 멤버가 아닙니다.`,i);
                 }else{
                     ReplyWispper(`오류가 발생했습니다. 다시 시도해주세요.`,i);
                 }
