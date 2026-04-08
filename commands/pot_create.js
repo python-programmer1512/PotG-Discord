@@ -11,15 +11,19 @@ function IntegerPadding(integer,length){
     return integer.toString().padStart(length,'0');
 }
 
-function PrintEmbedText(potName,potYear,potMonth,potDay,potHour,potMinute,potMember_Cnt,lastMember_Cnt,potDescription){
+function PrintEmbedText(potName,potYear,potMonth,potDay,potHour,potMinute,potMember_Cnt,lastMember_Cnt,potDescription,msgid = null,userid = null){
     var embedText = `# ${potName}\n ### ${potYear}년 ${IntegerPadding(potMonth,2)}월 ${IntegerPadding(potDay,2)}일  ${IntegerPadding(potHour,2)}시 ${IntegerPadding(potMinute,2)}분 \n`
 
+    if(msgid != null){
+        embedText += `**팟 참여자 :** ${GetPotMembers(msgid).map(id => `<@${id}>`).join(' ')} \n`;
+    }else{
+        embedText += `**팟 참여자 :** <@${userid}> \n`;
+    }
 
     if(potMember_Cnt!=inf){
-        embedText += `**팟 추가 인원 : ${potMember_Cnt}명**\n`;
         embedText += `**팟 남은 인원 : ${lastMember_Cnt}명**\n`;
     }else{
-        embedText += `**팟 추가 인원 : 정원 없음**\n`;
+        embedText += `**팟 남은 인원 : 정원 없음**\n`;
     }
     embedText+=`\n`;
 
@@ -53,16 +57,17 @@ async function Timer(fiveMinutesBefore,startTime,inputTime,Msg,potName) {
         const members = await GetPotMembers(Msg.id); // DB에서 참여자 ID 목록 가져오기(별도 구현 필요)
         if (members.length > 0) {
             const mentions = members.map(id => `<@${id}>`).join(' ');
-            await Msg.reply({content : `⏰ **${parseInt((inputTime-(Date.now()+9*60*60*1000))/(60*1000))+1}분 뒤 '${potName}' 팟이 시작됩니다!** \n ${mentions}`});
+            await Msg.reply({content : `⏰ **${parseInt((inputTime-(Date.now()+9*60*60*1000))/(60*1000))+1}분 뒤 '${potName}' 팟이 시작됩니다!** \n **팟 참여자 :** ${mentions}`});
         }
         
     }, fiveMinutesBefore);
 
     timers.start = setTimeout(async () => {
+        const members = await GetPotMembers(Msg.id);
         const startEmbed = new EmbedBuilder()
             .setColor(0xff0000)
             .setTitle(`🚀 **${potName}** 팟이 시작되었습니다!`)
-            .setDescription(`아래 ✅ 버튼을 눌러 출석을 확인해주세요. 확인하지 않으면 1분마다 호출됩니다. \n\n **팟 참여 인원 : **${LastMembers.map(id => `<@${id}>`).join(' ')}`);
+            .setDescription(`아래 ✅ 버튼을 눌러 출석을 확인해주세요. 확인하지 않으면 1분마다 호출됩니다. \n\n **팟 참여 인원 : **${members.map(id => `<@${id}>`).join(' ')}`);
 
         const checkBtn = new ButtonBuilder()
             .setCustomId('participate_check')
@@ -210,7 +215,7 @@ module.exports = {
         // 여기부턴 임베드가 무조건 생성이 될 수 있는 상태가 갖춰짐.
 
         var lastMember_Cnt = potMember_Cnt;
-        var embedText = PrintEmbedText(potName,potYear,potMonth,potDay,potHour,potMinute,potMember_Cnt,lastMember_Cnt,potDescription);
+        var embedText = PrintEmbedText(potName,potYear,potMonth,potDay,potHour,potMinute,potMember_Cnt,lastMember_Cnt,potDescription,null,interaction.user.id);
 
         const resultEmbed = new EmbedBuilder()
             .setColor(0x0099ff) // 임베드 바 색깔
@@ -260,6 +265,20 @@ module.exports = {
                 if(result.success){
                     lastMember_Cnt--;
                     ReplyWispper(`'${potName}' 팟에 참여되었습니다.`,i);
+                    
+                    // update
+                    var embedText = PrintEmbedText(potName,potYear,potMonth,potDay,potHour,potMinute,potMember_Cnt,lastMember_Cnt,potDescription,i.user.id);
+
+                    const resultEmbed = new EmbedBuilder()
+                        .setColor(0x0099ff) // 임베드 바 색깔
+                        .setDescription(embedText);
+
+                    await i.update({
+                        embeds: [resultEmbed],
+                        components: [buttons],
+                        withResponse: true
+                    });
+
                 }else if(result.message == "중복참여"){
                     ReplyWispper(`'${potName}' 팟에 이미 참여해 있습니다.`,i);
                 }else if(result.message == "정원"){

@@ -7,7 +7,7 @@ const {pool} = require('./db.js');
 const fs = require('fs');
 
 const rest = new REST({ version: '10' }).setToken(token);
-const isDev = true;
+const isDev = false;
 
 const client = new Client({ intents: [
     GatewayIntentBits.Guilds, 
