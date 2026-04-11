@@ -11,11 +11,12 @@ function IntegerPadding(integer,length){
     return integer.toString().padStart(length,'0');
 }
 
-function PrintEmbedText(potName,potYear,potMonth,potDay,potHour,potMinute,potMember_Cnt,lastMember_Cnt,potDescription,msgid = null,userid = null){
+async function PrintEmbedText(potName,potYear,potMonth,potDay,potHour,potMinute,potMember_Cnt,lastMember_Cnt,potDescription,msgid = null,userid = null){
     var embedText = `# ${potName}\n ### ${potYear}년 ${IntegerPadding(potMonth,2)}월 ${IntegerPadding(potDay,2)}일  ${IntegerPadding(potHour,2)}시 ${IntegerPadding(potMinute,2)}분 \n`
 
     if(msgid != null){
-        embedText += `**팟 참여자 :** ${GetPotMembers(msgid).map(id => `<@${id}>`).join(' ')} \n`;
+        const members = await GetPotMembers(msgid);
+        embedText += `**팟 참여자 :** ${members.map(id => `<@${id}>`).join(' ')} \n`;
     }else{
         embedText += `**팟 참여자 :** <@${userid}> \n`;
     }
@@ -31,6 +32,7 @@ function PrintEmbedText(potName,potYear,potMonth,potDay,potHour,potMinute,potMem
         embedText += `**팟에 대한 상세 설명**\n${potDescription}\n`;
     }
 
+    //console.log(embedText);
     return embedText;
 }
 
@@ -215,7 +217,7 @@ module.exports = {
         // 여기부턴 임베드가 무조건 생성이 될 수 있는 상태가 갖춰짐.
 
         var lastMember_Cnt = potMember_Cnt;
-        var embedText = PrintEmbedText(potName,potYear,potMonth,potDay,potHour,potMinute,potMember_Cnt,lastMember_Cnt,potDescription,null,interaction.user.id);
+        var embedText = await PrintEmbedText(potName,potYear,potMonth,potDay,potHour,potMinute,potMember_Cnt,lastMember_Cnt,potDescription,null,interaction.user.id);
 
         const resultEmbed = new EmbedBuilder()
             .setColor(0x0099ff) // 임베드 바 색깔
@@ -265,19 +267,17 @@ module.exports = {
                 if(result.success){
                     lastMember_Cnt--;
                     ReplyWispper(`'${potName}' 팟에 참여되었습니다.`,i);
-                    
-                    // update
-                    var embedText = PrintEmbedText(potName,potYear,potMonth,potDay,potHour,potMinute,potMember_Cnt,lastMember_Cnt,potDescription,i.user.id);
 
-                    const resultEmbed = new EmbedBuilder()
-                        .setColor(0x0099ff) // 임베드 바 색깔
+                    var embedText = await PrintEmbedText(potName,potYear,potMonth,potDay,potHour,potMinute,potMember_Cnt,lastMember_Cnt,potDescription,MsgCondition.id,null);
+                    const updatedEmbed = new EmbedBuilder()
+                        .setColor(0x0099ff)
                         .setDescription(embedText);
 
-                    await i.update({
-                        embeds: [resultEmbed],
+                    await MsgCondition.edit({
+                        embeds: [updatedEmbed],
                         components: [buttons],
-                        withResponse: true
                     });
+
 
                 }else if(result.message == "중복참여"){
                     ReplyWispper(`'${potName}' 팟에 이미 참여해 있습니다.`,i);
@@ -299,6 +299,17 @@ module.exports = {
                         });
                         await DeletePot(MsgCondition.id);
                         collector.stop('all_cancelled');
+                    }else{
+
+                        var embedText = await PrintEmbedText(potName,potYear,potMonth,potDay,potHour,potMinute,potMember_Cnt,lastMember_Cnt,potDescription,MsgCondition.id,null);
+                        const updatedEmbed = new EmbedBuilder()
+                            .setColor(0x0099ff)
+                            .setDescription(embedText);
+
+                        await MsgCondition.edit({
+                            embeds: [updatedEmbed],
+                            components: [buttons],
+                        });
                     }
                 }else if(result.message == "미참여"){
                     ReplyWispper(`'${potName}' 팟에 아직 참여하지 않습니다.`,i);

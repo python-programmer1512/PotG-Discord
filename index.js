@@ -34,10 +34,10 @@ const commands = [];
                 : Routes.applicationCommands(clientId),
             { body: [] },
         );
-        // await rest.put(
-        //     Routes.applicationCommands(clientId),
-        //     { body: [] },
-        // );
+        await rest.put(
+            Routes.applicationCommands(clientId),
+            { body: [] },
+        );
         console.log("모든 커맨드 제거 완료!");
         console.log('슬래시 커맨드 등록 중...');
 
