@@ -4,6 +4,8 @@
 ### Discord Token ###
 config.json
 
+### Claude Code File ###
+.claude/
 
 ### NextJS ###
 # dependencies
