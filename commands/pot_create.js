@@ -112,7 +112,7 @@ async function Timer(fiveMinutesBefore,startTime,inputTime,Msg,potName) {
             }
         });
 
-        // 3. 1분마다 미출석자 재멘션 (총 5번)
+        // 3. 1분마다 미출석자 DM 재알림 (총 5번)
         let count = 0;
         timers.interval = setInterval(async () => {
             count++;
@@ -122,10 +122,20 @@ async function Timer(fiveMinutesBefore,startTime,inputTime,Msg,potName) {
             }
 
             const LastMembers = await GetPotMembers(Msg.id);
-            //console.log(LastMembers.length);
             if (LastMembers.length > 0) {
-                const mentions = LastMembers.map(id => `<@${id}>`).join(' ');
-                await Msg.reply({content:`⚠️ **'${potName}' 팟 미출석 알림 (${count}/5)**\n아직 체크하지 않은 분들: ${mentions}`});
+                for (const userId of LastMembers) {
+                    try {
+                        const user = await Msg.client.users.fetch(userId);
+                        await user.send(
+                            `⚠️ **'${potName}' 팟 미출석 알림 (${count}/5)**\n` +
+                            `아직 출석 체크를 하지 않으셨습니다!\n` +
+                            `👉 ${Msg.url}`
+                        );
+                    } catch (e) {
+                        // DM이 막혀있는 유저는 채널에서 멘션으로 대체
+                        await Msg.reply({ content: `⚠️ <@${userId}> DM을 보낼 수 없어 채널에서 알립니다. **(${count}/5)**` });
+                    }
+                }
             }
         }, 60 * 1000); // 1분 간격
 
