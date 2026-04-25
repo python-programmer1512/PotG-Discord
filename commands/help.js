@@ -29,6 +29,7 @@ module.exports = {
             `> \`pot_day\` — 일 (기본값: 오늘)\n` +
             `> \`pot_member_cnt\` — 최대 인원 (기본값: 무제한)\n` +
             `> \`pot_description\` — 팟 설명 (최대 1000자)\n` +
+            `> \`pot_alarm_cnt\` — 미출석 알림 횟수 (기본값: 5, 0~20)\n` +
             `\n` +
             `**예시**\n` +
             `\`\`\`\n` +

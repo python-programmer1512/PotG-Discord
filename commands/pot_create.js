@@ -43,7 +43,7 @@ async function ReplyWispper(msg,interaction){
     });
 }
 
-async function Timer(fiveMinutesBefore,startTime,inputTime,Msg,potName) {
+async function Timer(fiveMinutesBefore,startTime,inputTime,Msg,potName,potAlarm_cnt) {
     // if(Msg == null){
     //     // 채널 아이디도 저장해서 같이 불러와야함
     //     //Msg = 
@@ -66,10 +66,11 @@ async function Timer(fiveMinutesBefore,startTime,inputTime,Msg,potName) {
 
     timers.start = setTimeout(async () => {
         const members = await GetPotMembers(Msg.id);
+
         const startEmbed = new EmbedBuilder()
             .setColor(0xff0000)
             .setTitle(`🚀 **${potName}** 팟이 시작되었습니다!`)
-            .setDescription(`아래 ✅ 버튼을 눌러 출석을 확인해주세요. 확인하지 않으면 1분마다 호출됩니다. \n\n **팟 참여 인원 : **${members.map(id => `<@${id}>`).join(' ')}`);
+            .setDescription(`아래 ✅ 버튼을 눌러 출석을 확인해주세요. 확인하지 않으면 1분마다 DM으로 호출됩니다. \n\n **팟 참여 인원 : **${members.map(id => `<@${id}>`).join(' ')}`);
 
         const checkBtn = new ButtonBuilder()
             .setCustomId('participate_check')
@@ -78,45 +79,100 @@ async function Timer(fiveMinutesBefore,startTime,inputTime,Msg,potName) {
             .setStyle(ButtonStyle.Primary)
             .setDisabled(false);
 
-
         const row = new ActionRowBuilder().addComponents(checkBtn);
         const startMsg = await Msg.reply({ embeds: [startEmbed], components: [row] });
 
-        // 버튼 컬렉터 설정 (5분간 작동)
-        const checkCollector = startMsg.createMessageComponentCollector({ 
-            componentType: ComponentType.Button, 
-            time: 5 * 60 * 1000 
+        // DM 발송 (참여자 전원)
+        const dmEntries = [];
+        for (const userId of members) {
+            try {
+                const user = await Msg.client.users.fetch(userId);
+                const dmCheckBtn = new ButtonBuilder()
+                    .setCustomId('participate_check_dm')
+                    .setEmoji({name : '✅'})
+                    .setLabel('참가 확인')
+                    .setStyle(ButtonStyle.Primary)
+                    .setDisabled(false);
+                const dmRow = new ActionRowBuilder().addComponents(dmCheckBtn);
+                const dmMsg = await user.send({ embeds: [startEmbed], components: [dmRow] });
+                dmEntries.push({ userId, dmMsg, collector: null });
+            } catch (e) {
+                console.error(`DM 발송 실패 (${userId}):`, e);
+            }
+        }
+
+        // 공통 확인 처리 함수
+        async function handleConfirmation(userId, interaction, isDM) {
+            const result = await UpdatePot(2, Msg.id, userId);
+            if (result.success) {
+                if (isDM) {
+                    await interaction.reply({ content: `✅ **${potName}** 팟 참여가 확인되었습니다.` });
+                    try { await interaction.message.edit({ components: [] }); } catch (e) {}
+                } else {
+                    ReplyWispper(`✅ **${potName}** 팟 참여가 확인되었습니다.`, interaction);
+                    // 채널에서 확인 시 해당 유저의 DM 버튼도 비활성화
+                    const dmEntry = dmEntries.find(d => d.userId === userId);
+                    if (dmEntry) {
+                        try { await dmEntry.dmMsg.edit({ components: [] }); } catch (e) {}
+                    }
+                }
+
+                const LastMembers = await GetPotMembers(Msg.id);
+                if (LastMembers.length === 0) {
+                    await Msg.reply({ content: `✅ 모든 인원이 **${potName}** 팟에 참석하였습니다!` });
+                    await DeletePot(Msg.id);
+                    if (timers.alert) clearTimeout(timers.alert);
+                    if (timers.start) clearTimeout(timers.start);
+                    checkCollector.stop('all_confirmed');
+                    dmEntries.forEach(d => { if (d.collector) d.collector.stop('all_confirmed'); });
+                }
+            } else if (result.message === '미참여') {
+                if (isDM) {
+                    await interaction.reply({ content: `**${potName}** 팟에 참여한 멤버가 아닙니다.` });
+                } else {
+                    ReplyWispper(`**${potName}** 팟에 참여한 멤버가 아닙니다.`, interaction);
+                }
+            } else {
+                if (isDM) {
+                    await interaction.reply({ content: `오류가 발생했습니다. 다시 시도해주세요.` });
+                } else {
+                    ReplyWispper(`오류가 발생했습니다. 다시 시도해주세요.`, interaction);
+                }
+            }
+        }
+
+        // 채널 버튼 컬렉터 (알림 횟수만큼 작동)
+        const checkCollector = startMsg.createMessageComponentCollector({
+            componentType: ComponentType.Button,
+            time: potAlarm_cnt * 60 * 1000
         });
 
         checkCollector.on('collect', async i => {
             if (i.customId === 'participate_check') {
-                // db 에서 해당 유저를 지움
-
-                const result = await UpdatePot(2,Msg.id,i.user.id);
-                if(result.success){
-                    ReplyWispper(` **${potName}** 팟 참여가 확인되었습니다.`,i);
-                    const LastMembers = await GetPotMembers(Msg.id);
-                    if(LastMembers.length == 0){
-                        await Msg.reply({content:`✅ 모든 인원이 **${potName}** 팟에 참석하였습니다!`});
-                        await DeletePot(Msg.id);
-                        if (timers.alert) clearTimeout(timers.alert); // 5분 전 알림 취소
-                        if (timers.start) clearTimeout(timers.start); // 정시 시작 로직 취소
-                        checkCollector.stop('all_cancelled');
-                        return;
-                    }
-                }else if(result.message == "미참여"){
-                    ReplyWispper(`**${potName}** 팟에 참여한 멤버가 아닙니다.`,i);
-                }else{
-                    ReplyWispper(`오류가 발생했습니다. 다시 시도해주세요.`,i);
-                }
+                await handleConfirmation(i.user.id, i, false);
             }
         });
 
-        // 3. 1분마다 미출석자 DM 재알림 (총 5번)
+        // DM 버튼 컬렉터 (유저별)
+        for (const dmEntry of dmEntries) {
+            const dmCollector = dmEntry.dmMsg.createMessageComponentCollector({
+                componentType: ComponentType.Button,
+                time: potAlarm_cnt * 60 * 1000
+            });
+            dmEntry.collector = dmCollector;
+
+            dmCollector.on('collect', async i => {
+                if (i.customId === 'participate_check_dm') {
+                    await handleConfirmation(i.user.id, i, true);
+                }
+            });
+        }
+
+        // 3. 1분마다 미출석자 DM 재알림 (총 potAlarm_cnt번)
         let count = 0;
         timers.interval = setInterval(async () => {
             count++;
-            if (count > 5) {
+            if (count > potAlarm_cnt) {
                 clearInterval(timers.interval);
                 return;
             }
@@ -127,13 +183,12 @@ async function Timer(fiveMinutesBefore,startTime,inputTime,Msg,potName) {
                     try {
                         const user = await Msg.client.users.fetch(userId);
                         await user.send(
-                            `⚠️ **'${potName}' 팟 미출석 알림 (${count}/5)**\n` +
+                            `⚠️ **'${potName}' 팟 미출석 알림 (${count}/${potAlarm_cnt})**\n` +
                             `아직 출석 체크를 하지 않으셨습니다!\n` +
                             `👉 ${Msg.url}`
                         );
                     } catch (e) {
-                        // DM이 막혀있는 유저는 채널에서 멘션으로 대체
-                        await Msg.reply({ content: `⚠️ <@${userId}> DM을 보낼 수 없어 채널에서 알립니다. **(${count}/5)**` });
+                        await Msg.reply({ content: `⚠️ <@${userId}> DM을 보낼 수 없어 채널에서 알립니다. **(${count}/${potAlarm_cnt})**` });
                     }
                 }
             }
@@ -193,6 +248,12 @@ module.exports = {
                 .setDescription('이 팟에 대한 설명을 작성해주세요.')
                 .setRequired(false)
                 .setMaxLength(1000))
+        .addIntegerOption(option =>
+            option.setName('pot_alarm_cnt')
+                .setDescription('팟 시작 후 미출석자에게 알림을 보내는 횟수를 알려주세요. (기본값: 5)')
+                .setRequired(false)
+                .setMinValue(0)
+                .setMaxValue(20))
 
     ,async execute(interaction) {
 
@@ -206,6 +267,7 @@ module.exports = {
         const potMinute = interaction.options.getInteger('pot_minute');
         const potMember_Cnt = interaction.options.getInteger('pot_member_cnt') || inf;
         const potDescription = interaction.options.getString('pot_description');
+        const potAlarm_cnt = interaction.options.getInteger('pot_alarm_cnt') || 5;
 
         const inputDate = new Date(Date.UTC(potYear, potMonth - 1, potDay, potHour, potMinute)); // month - 1 주의
         const inputTime = inputDate.getTime(); // 밀리초 단위 숫자
@@ -266,7 +328,7 @@ module.exports = {
         })
 
         //Timer(fiveMinutesBefore,startTime);
-        const Timers = await Timer(fiveMinutesBefore,startTime,inputTime,MsgCondition,potName);
+        const Timers = await Timer(fiveMinutesBefore,startTime,inputTime,MsgCondition,potName,potAlarm_cnt);
 
         collector.on('collect', async i => {
             const { customId, user } = i;
